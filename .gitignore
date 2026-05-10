@@ -1,3 +1,5 @@
 .playwright-mcp/
 .DS_Store
 node_modules/
+.superpowers/
+ig_*.png

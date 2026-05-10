@@ -1,9 +1,12 @@
 const DB_NAME = "spenny-local";
 const DB_VERSION = 1;
 const STORE = "kv";
+const STORAGE_SCHEMA_VERSION = 2;
 
 const DEFAULT_STATE = {
+  schemaVersion: STORAGE_SCHEMA_VERSION,
   manualIncome: 0,
+  manualBills: [],
   transactions: [],
   dismissedBills: [],
   importBatches: [],
@@ -18,13 +21,26 @@ const DEFAULT_STATE = {
 export async function loadState() {
   const db = await openDb();
   const saved = await getValue(db, "state");
+  if (saved && saved.schemaVersion !== STORAGE_SCHEMA_VERSION) {
+    const fresh = freshState();
+    await setValue(db, "state", fresh);
+    return fresh;
+  }
   return deepMerge(DEFAULT_STATE, saved || {});
 }
 
 export async function saveState(state) {
   const db = await openDb();
-  await setValue(db, "state", state);
-  return state;
+  const versionedState = { ...state, schemaVersion: STORAGE_SCHEMA_VERSION };
+  await setValue(db, "state", versionedState);
+  return versionedState;
+}
+
+export async function resetState() {
+  const db = await openDb();
+  const fresh = freshState();
+  await setValue(db, "state", fresh);
+  return fresh;
 }
 
 function openDb() {
@@ -66,4 +82,8 @@ function deepMerge(base, saved) {
       ...(saved?.aiSettings || {}),
     },
   };
+}
+
+function freshState() {
+  return JSON.parse(JSON.stringify(DEFAULT_STATE));
 }
